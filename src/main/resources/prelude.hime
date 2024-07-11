@@ -1,0 +1,108 @@
+(def (list . l) -> l)
+(def nil -> (list))
+(def (cons a b) -> (list a . b))
+(def (car (a . _)) -> a)
+(def (cdr (_ . b)) -> b)
+
+(def (idem arg) -> arg)
+(def-meta (quote arg) -> arg)
+(def-macro-fn (eval arg) -> arg)
+
+(def-macro (apply-list f args) -> (cons f (eval args)))
+(def-macro (apply f . args) -> (cons f args))
+
+(def (require requirement . lasts) -> ((eval (list fn true (list apply-list require lasts))) . requirement))
+(def (require . expr) -> expr)
+
+(def (map f ()) -> nil)
+(def (map f (first . lasts)) -> (cons (f first) (map f lasts)))
+(def (fold f init ()) -> init)
+(def (fold f init (first . lasts)) -> (fold f (f init first) lasts))
+
+(def (concat last) -> last)
+(def (concat () . rems) -> (apply-list concat rems))
+(def (concat (first . lasts) . rems) -> (cons first (apply-list concat (cons lasts rems))))
+
+(def (collect-str l) (apply-list concat-str l))
+
+(def-macro (match val . arms) -> (cons (cons poly (map (fn (arm) -> (cons fn arm)) arms)) val))
+(def (is-pair arg) -> (match arg
+    ((_ . _) -> true)
+    (_ -> false)))
+
+(def (Y f) -> ((fn (x) (f (x x))) (fn (x) (f (x x)))))
+(def ((K arg) . _) -> arg)
+(def I -> idem)
+(def (self-ref form) -> (self-ref form 'self))
+(def-macro-fn (self-ref form name) -> (list Y (list fn (list name) form)))
+
+(def (to-str . args) -> (apply-list concat-str (map str args)))
+
+(def-macro (panic . args) -> (list panic (cons to-str args)))
+
+(def-macro (quasiquote ((unq-spl? . args) . others)) -> (require (eq unq-spl? 'unquote-splicing)  ->
+    (match args
+        ((arg) -> (list concat (car args) (list quasiquote others)))
+        (_ -> (panic "unquote-splicing takes exactly 1 argument")))))
+(def-macro (quasiquote (a . b)) -> (require (eq a 'unquote) ->
+    (match b
+        ((arg) -> arg)
+        (_ -> (panic "unquote takes exactly 1 argument")))))
+(def quasiquote quote)
+
+(def (is obj type) -> (eq (tag-of obj) type))
+
+(def (return obj) (io obj))
+
+(def-macro (do (<<? name -> arg) . lasts) -> (require (eq <<? '<<) ->
+    (list then (list fn (list name) (cons do lasts)) arg)))
+(def-macro (do arg . lasts) -> (list do `(<< _ -> ,arg) . lasts))
+(def-macro (do -> ()) (list return nil))
+(def-macro (do -> result) result)
+
+(def ($ first) -> first)
+(def ($ first . lasts) -> (fn args ((apply-list $ lasts) (apply-list first args))))
+
+(def (any pred ()) -> false)
+(def (any pred (first . lasts)) -> (if (pred first) true (any pred lasts)))
+(def (all pred l) -> (not (any ($ pred not) l)))
+
+(def (= first . lasts) -> (all (fn (x) (eq first x)) lasts))
+(def /= -> ($ eq not))
+(def (or . args) -> (not (apply-list (map not args) and)))
+(def (seq-cmp inner) (self-ref (poly
+    (fn (lhs rhs . args) -> (&& (inner lhs rhs) (self rhs . args)))
+    (fn (_) -> true))))
+(def > -> (seq-cmp gt))
+(def < -> (seq-cmp ls))
+(def >= -> (seq-cmp ($ lt not)))
+(def <= -> (seq-cmp ($ gt not)))
+(def (+ . args) -> (fold add 0 args))
+(def (* . args) -> (fold mul 1 args))
+(def (- a b) -> (sub a b))
+(def (- a) -> (sub 0 a))
+(def (/ a b) -> (div a b))
+(def (1/ a) -> (div 1 a))
+(def (1+ . args) -> (fold add 1 args))
+(def (// a b) -> (div-floor a b))
+(def (% a b) -> (rem a b))
+
+(def-macro (cond else) -> else)
+(def-macro (cond (pred -> val) . lasts) -> (list if pred val (cons cond lasts)))
+
+(def (assert assertion val) -> (eval (list 'assert assertion (to-str "Assertion '" cond "' failed.") val)))
+(def (assert assertion msg val) -> (if assertion val (panic msg)))
+
+(def-macro (let (pat -> obj) . lasts) `((,fn ,pat (,let . ,lasts)) . ,obj))
+(def-macro (let -> form) form)
+
+; these are just to show friendlier error messages when they're misused
+(def-meta (unquote _) -> (panic "Unexpected 'unquote' outside of quasiquote-form"))
+(def-meta (unquote-splicing _) -> (panic "Unexpected 'unquote-splicing' outside of quasiquote-form"))
+
+(def-macro (def-tag name) `(,def ,name (,unique-tag ,name)))
+
+(def (print . args) (@print-str (apply-list to-str args)))
+(def (println . args) (do
+    (apply-list print args)
+    @println))
