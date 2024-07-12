@@ -25,8 +25,9 @@ kotlin {
 
 publishing {
     repositories {
-        maven("https://maven.pkg.github.com/wumoe-llc/kaguya") {
+        maven {
             name = "GitHubPackages"
+            url = uri("https://maven.pkg.github.com/wumoe-llc/kaguya")
             credentials {
                 username = System.getenv("GITHUB_ACTOR")
                 password = System.getenv("GITHUB_TOKEN")
