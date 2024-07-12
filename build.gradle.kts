@@ -1,5 +1,6 @@
 plugins {
     kotlin("jvm") version "1.9.24"
+    id("maven-publish")
 }
 
 group = "org.wumoe"
@@ -20,4 +21,16 @@ tasks.test {
 }
 kotlin {
     jvmToolchain(20)
+}
+
+publishing {
+    repositories {
+        maven("https://maven.pkg.github.com/wumoe-llc/kaguya") {
+            name = "GitHubPackages"
+            credentials {
+                username = System.getenv("GITHUB_ACTOR")
+                password = System.getenv("GITHUB_TOKEN")
+            }
+        }
+    }
 }
