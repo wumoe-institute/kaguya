@@ -1,6 +1,6 @@
 plugins {
     kotlin("jvm") version "1.9.24"
-    id("maven-publish")
+    `maven-publish`
 }
 
 group = "org.wumoe"
@@ -13,7 +13,6 @@ repositories {
 dependencies {
     testImplementation(kotlin("test"))
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.8.1")
-    implementation(kotlin("reflect"))
 }
 
 tasks.test {
@@ -24,6 +23,15 @@ kotlin {
 }
 
 publishing {
+    publications {
+        create<MavenPublication>("maven") {
+            groupId = project.group.toString()
+            artifactId = "kaguya"
+            version = project.version.toString()
+
+            from(components["java"])
+        }
+    }
     repositories {
         maven {
             name = "GitHubPackages"
