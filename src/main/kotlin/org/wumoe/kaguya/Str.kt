@@ -127,12 +127,6 @@ class Str(
 //        }
 //    }
 
-    suspend fun print() {
-        asPieceFlow().collect {
-            print(it.toString())
-        }
-    }
-
     suspend fun toList() = AsListImpl.applyMeta(NoContext, this.lazy())
 
     override suspend fun eq(other: Object): Boolean {

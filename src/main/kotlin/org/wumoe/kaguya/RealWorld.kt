@@ -11,13 +11,21 @@ import org.wumoe.kaguya.parser.streamIn
 import java.io.FileNotFoundException
 import java.io.FileReader
 
-class RealWorld(
+open class RealWorld(
     /**
      * A map from `Int` to full paths of the source files.
      */
     private val sourcePaths: MutableList<String> = mutableListOf(),
     private val globalScope: MutableContext = MutableContext(Intrinsics),
 ) {
+    open fun print(piece: Piece) {
+        kotlin.io.print(piece)
+    }
+
+    open fun println() {
+        kotlin.io.println()
+    }
+
     fun define(name: Symbol, obj: LazyObject) {
         globalScope.put(name, obj)
     }

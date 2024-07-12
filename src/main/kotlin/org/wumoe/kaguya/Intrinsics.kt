@@ -286,16 +286,18 @@ object Intrinsics : Context {
         }
 
         def("@println",
-            IO {
-                println()
+            IO { world ->
+                world.println()
                 Nil
             }
         )
 
         def("@print-str", 1) { args ->
-            IO {
+            IO { world ->
                 val str = args.receive().expect(Str)
-                str.print()
+                str.asPieceFlow().collect {
+                    world.print(it)
+                }
                 Nil
             }
         }
