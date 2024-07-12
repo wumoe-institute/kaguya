@@ -1,6 +1,5 @@
 package org.wumoe.kaguya
 
-import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.single
 import java.lang.System.identityHashCode
