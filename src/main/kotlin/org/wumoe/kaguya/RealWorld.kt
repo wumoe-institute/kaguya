@@ -18,11 +18,11 @@ open class RealWorld(
     private val sourcePaths: MutableList<String> = mutableListOf(),
     private val globalScope: MutableContext = MutableContext(Intrinsics),
 ) {
-    open fun print(piece: Piece) {
+    open suspend fun print(piece: Piece) {
         kotlin.io.print(piece)
     }
 
-    open fun println() {
+    open suspend fun println() {
         kotlin.io.println()
     }
 
