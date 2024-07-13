@@ -4,7 +4,7 @@ plugins {
 }
 
 group = "org.wumoe"
-version = "0.1.0"
+version = "0.1.1"
 
 repositories {
     mavenCentral()
@@ -20,6 +20,12 @@ tasks.test {
 }
 kotlin {
     jvmToolchain(17)
+}
+
+java {
+    toolchain {
+        languageVersion.set(JavaLanguageVersion.of(17))
+    }
 }
 
 publishing {
