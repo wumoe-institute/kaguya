@@ -92,22 +92,18 @@ open class RealWorld(
             throw e
         }
 
-    companion object {
-        suspend fun withPrelude(): RealWorld {
-            val path = checkNotNull(RealWorld::class.java.getResource("/prelude.hime")) {
-                "'prelude.hime' not found in resources."
-            }.path
-            val world = RealWorld()
-            try {
-                world.importFile(path)
-            } catch (e: Panic) {
-                println("prelude panicked: ${e.toStringRaw()}")
-                throw e
-            } catch (e: ParseError) {
-                println("parse error in prelude: $e\nat ${e.pos}")
-                throw e
-            }
-            return world
+    suspend fun loadPrelude() {
+        val path = checkNotNull(RealWorld::class.java.getResource("/prelude.hime")) {
+            "'prelude.hime' not found in resources."
+        }.path
+        try {
+            importFile(path)
+        } catch (e: Panic) {
+            println("prelude panicked: ${e.toStringRaw()}")
+            throw e
+        } catch (e: ParseError) {
+            println("parse error in prelude: $e\nat ${e.pos}")
+            throw e
         }
     }
 }
