@@ -285,12 +285,12 @@ object Intrinsics : Context {
             Import(args.receive())
         }
 
-        def("@println",
+        def("@println", 0) { _ ->
             IO { world ->
                 world.println()
                 Nil
             }
-        )
+        }
 
         def("@print-str", 1) { args ->
             IO { world ->

@@ -105,4 +105,4 @@
 (def (print . args) (@print-str (apply-list to-str args)))
 (def (println . args) (do
     (apply-list print args)
-    @println))
+    (@println)))
