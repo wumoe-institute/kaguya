@@ -42,7 +42,7 @@ publishing {
     repositories {
         maven {
             name = "GitHubPackages"
-            url = uri("https://maven.pkg.github.com/wumoe-llc/kaguya")
+            url = uri("https://maven.pkg.github.com/wumoe-institute/kaguya")
             credentials {
                 username = System.getenv("GITHUB_ACTOR")
                 password = System.getenv("GITHUB_TOKEN")
