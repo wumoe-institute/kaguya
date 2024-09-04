@@ -10,12 +10,13 @@ import org.wumoe.kaguya.parser.parseSingle
 import org.wumoe.kaguya.parser.streamIn
 import java.io.FileNotFoundException
 import java.io.FileReader
+import java.io.InputStreamReader
 
 open class RealWorld(
     /**
      * A map from `Int` to full paths of the source files.
      */
-    private val sourcePaths: MutableList<String> = mutableListOf(),
+    private val sourcePaths: MutableSet<String> = mutableSetOf(),
     private val globalScope: MutableContext = MutableContext(Intrinsics),
 ) {
     open suspend fun print(piece: Piece) {
@@ -30,14 +31,7 @@ open class RealWorld(
         globalScope.put(name, obj)
     }
 
-    fun parseFile(fullPath: String): Flow<Positioned<Object>>? {
-        if (sourcePaths.contains(fullPath)) return null
-        val reader = try {
-            FileReader(fullPath)
-        } catch (e: FileNotFoundException) {
-            TODO()
-        }
-        val fileNo = sourcePaths.size
+    private fun parseFileRaw(fullPath: String, reader: InputStreamReader): Flow<Positioned<Object>> {
         sourcePaths.add(fullPath)
         return flow {
             coroutineScope {
@@ -50,16 +44,32 @@ open class RealWorld(
                         }
                     }
                 }.withIndex().streamIn(this)
-                val tokenStream = Token.tokenFlow(charStream, fileNo).streamIn(this)
+                val tokenStream = Token.tokenFlow(charStream, fullPath).streamIn(this)
                 while (tokenStream.hasNext()) {
-                    emit(parseSingle(tokenStream, fileNo))
+                    emit(parseSingle(tokenStream, fullPath))
                 }
             }
         }
     }
 
-    suspend fun importFile(fullPath: String) = withContext(Dispatchers.IO) {
-        parseFile(fullPath)?.collect {
+    private fun readFile(fullPath: String): InputStreamReader? {
+        if (sourcePaths.contains(fullPath)) return null
+        return try {
+            FileReader(fullPath)
+        } catch (e: FileNotFoundException) {
+            throw Panic(e.message ?: "")
+        }
+    }
+
+    fun parseFile(fullPath: String) =
+        readFile(fullPath)?.let { parseFileRaw(fullPath, it) }
+
+
+    suspend fun importFile(fullPath: String) =
+        readFile(fullPath)?.let { importFileRaw(fullPath, it) }
+
+    private suspend fun importFileRaw(fullPath: String, reader: InputStreamReader) = withContext(Dispatchers.IO) {
+        parseFileRaw(fullPath, reader).collect {
             try {
                 evalAndExecute(it.inner)
             } catch (e: Panic) {
@@ -93,11 +103,12 @@ open class RealWorld(
         }
 
     suspend fun loadPrelude() {
-        val path = checkNotNull(RealWorld::class.java.getResource("/prelude.hime")) {
+        if (sourcePaths.contains(preludePlaceholderName)) return
+        val reader = checkNotNull(RealWorld::class.java.getResourceAsStream("/prelude.hime")) {
             "'prelude.hime' not found in resources."
-        }.path
+        }.reader()
         try {
-            importFile(path)
+            importFileRaw(preludePlaceholderName, reader)
         } catch (e: Panic) {
             println("prelude panicked: ${e.toStringRaw()}")
             throw e
@@ -107,6 +118,8 @@ open class RealWorld(
         }
     }
 }
+
+private const val preludePlaceholderName = "\u0000///prelude"
 
 class MutableContext(val parent: Context) : Context {
     private data class PolyBuilder(val list: MutableList<LazyObject>)

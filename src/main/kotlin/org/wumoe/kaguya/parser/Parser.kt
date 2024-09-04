@@ -2,19 +2,19 @@ package org.wumoe.kaguya.parser
 
 import org.wumoe.kaguya.*
 
-suspend fun parseSingle(tokenStream: TokenStream, fileNum: Int): Positioned<Object> {
+suspend fun parseSingle(tokenStream: TokenStream, file: String?): Positioned<Object> {
     check(tokenStream.hasNext()) { "calling parseSingle on an empty tokenStream." }
 
     val (token, pos) = tokenStream.next()
     return when (token) {
-        Token.Bracket.LEFT -> parseList(tokenStream, fileNum, pos)
+        Token.Bracket.LEFT -> parseList(tokenStream, file, pos)
         Token.Bracket.RIGHT -> throw ParseError("Unexpected ')'.", pos)
         Token.Dot -> throw ParseError("Unexpected dot in this position.", pos)
         is Token.Ident -> Symbol(token.inner).withPos(pos)
         is Token.Num -> token.inner.withPos(pos)
         is Token.Prefix -> {
             if (!tokenStream.hasNext()) throw ParseError("Unexpected EOF after a prefix.", pos)
-            val prefixed = parseSingle(tokenStream, fileNum)
+            val prefixed = parseSingle(tokenStream, file)
             val fullPos = pos until prefixed.pos
             fromList(mutableListOf(token.name().withPos(pos), prefixed), fullPos, isProper=true).withPos(fullPos)
         }
@@ -30,7 +30,7 @@ private enum class DotStatus {
     OneElementAfterDot,
 }
 
-private suspend fun parseList(tokenStream: TokenStream, fileNum: Int, leftBracketPos: Position): Positioned<Object> {
+private suspend fun parseList(tokenStream: TokenStream, file: String?, leftBracketPos: Position): Positioned<Object> {
     var dotStatus = DotStatus.NoDot
     val buffer = mutableListOf<Positioned<Object>>()
     loop {
@@ -57,7 +57,7 @@ private suspend fun parseList(tokenStream: TokenStream, fileNum: Int, leftBracke
                     DotStatus.JustMetADot -> dotStatus = DotStatus.OneElementAfterDot
                     DotStatus.OneElementAfterDot -> throw ParseError("Expecting ')'. Only one element is allowed after a dot.", pos)
                 }
-                buffer.add(parseSingle(tokenStream, fileNum))
+                buffer.add(parseSingle(tokenStream, file))
             }
         }
     }

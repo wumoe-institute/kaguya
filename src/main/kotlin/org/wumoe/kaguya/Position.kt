@@ -3,15 +3,15 @@ package org.wumoe.kaguya
 /**
  * Position of a token (tree) in a file.
  */
-data class Position(val file: Int, val idx: Int, val len: Int) {
+data class Position(val file: String?, val idx: Int, val len: Int) {
     companion object {
-        val builtin = Position(-1, -1, -1)
-        fun Anonymous(idx: Int, len: Int) = Position(-1, idx, len)
+        val builtin = Position(null, -1, -1)
+        fun anonymous(idx: Int, len: Int) = Position(null, idx, len)
     }
 
     fun isBuiltin() = idx == -1
 
-    fun isAnonymous() = file == -1
+    fun isAnonymous() = file === null
 
     val endIdx get() = idx + len
 }

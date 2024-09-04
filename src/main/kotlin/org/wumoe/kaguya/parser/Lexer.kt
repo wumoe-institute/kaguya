@@ -42,13 +42,13 @@ sealed interface Token {
     data class Num(val inner: Rational) : Token
 
     companion object {
-        fun tokenFlow(stream: CodeStream, fileNum: Int): Flow<Positioned<Token>> = flow {
+        fun tokenFlow(stream: CodeStream, file: String?): Flow<Positioned<Token>> = flow {
             // a buffer. it can either be an identifier, or a number, or a dot (arrow).
             val ident = StringBuilder()
             for ((idx, c) in stream) {
                 suspend fun emitIdent() {
                     if (ident.isNotEmpty()) {
-                        val pos = Position(fileNum, idx - ident.length, ident.length)
+                        val pos = Position(file, idx - ident.length, ident.length)
                         val tok: Token = if (ident.contentEquals(".") || ident.contentEquals("->")) {
                             Dot
                         } else {
@@ -64,7 +64,7 @@ sealed interface Token {
                     }
                 }
 
-                fun currentPos(len: Int = 1) = Position(fileNum, idx, len)
+                fun currentPos(len: Int = 1) = Position(file, idx, len)
                 when (c) {
                     '\'' -> {
                         emit(Prefix.QUOTE.withPos(currentPos()))
@@ -100,13 +100,13 @@ sealed interface Token {
                             // just use ident.length - 1 here as the number of '#'s is ok.
                             val hashCount = ident.length - 1
                             ident.clear()
-                            val result = parseRawStrLiteral(stream, hashCount, fileNum, idx)
-                            val pos = Position(fileNum, idx - hashCount - 1, result.length + hashCount + 2)
+                            val result = parseRawStrLiteral(stream, hashCount, file, idx)
+                            val pos = Position(file, idx - hashCount - 1, result.length + hashCount + 2)
                             emit(Str(result).withPos(pos))
                         } else {
                             emitIdent()
-                            val (result, len) = parseStrLiteral(stream, fileNum, idx)
-                            emit(Str(result).withPos(Position(fileNum, idx, len + 1)))
+                            val (result, len) = parseStrLiteral(stream, file, idx)
+                            emit(Str(result).withPos(Position(file, idx, len + 1)))
                         }
                     }
 
@@ -142,13 +142,13 @@ fun Prefix.name() = Str(
 private suspend fun parseRawStrLiteral(
     stream: CodeStream,
     hashCount: Int,
-    fileNum: Int,
+    file: String?,
     beginIdx: Int
 ): String {
     val builder = StringBuilder()
     var lastIdx = beginIdx
     loop {
-        if (!stream.hasNext()) throw ParseError("Unexpected EOF while parsing str literal.", Position(fileNum, lastIdx, 1))
+        if (!stream.hasNext()) throw ParseError("Unexpected EOF while parsing str literal.", Position(file, lastIdx, 1))
         val (idx, c) = stream.next()
         lastIdx = idx
         when (c) {
@@ -175,20 +175,20 @@ private suspend fun parseRawStrLiteral(
 
 private suspend fun parseStrLiteral(
     stream: CodeStream,
-    fileNum: Int,
+    file: String?,
     beginIdx: Int
 ): Pair<String, Int> {
     val builder = StringBuilder()
     var len = 0
     loop {
-        if (!stream.hasNext()) throw ParseError("Unexpected EOF while parsing str literal.", Position(fileNum, beginIdx + len, 1))
+        if (!stream.hasNext()) throw ParseError("Unexpected EOF while parsing str literal.", Position(file, beginIdx + len, 1))
         val (idx, c) = stream.next()
         len += 1
         when (c) {
             '"' -> return Pair(builder.toString(), len + 1)
-            '\n' -> throw ParseError("Unexpected end of line.", Position(fileNum, idx, 1))
+            '\n' -> throw ParseError("Unexpected end of line.", Position(file, idx, 1))
             '\\' -> {
-                if (!stream.hasNext()) throw ParseError("Unexpected EOF while parsing str literal.", Position(fileNum, beginIdx + len, 1))
+                if (!stream.hasNext()) throw ParseError("Unexpected EOF while parsing str literal.", Position(file, beginIdx + len, 1))
                 len += 1
                 val (escapeIdx, escape) = stream.next()
                 when (escape) {
@@ -213,7 +213,7 @@ private suspend fun parseStrLiteral(
                         TODO("unicode escaping")
                     }
 
-                    else -> throw ParseError("Unknown character escape `\\$escape`", Position(fileNum, escapeIdx, 1))
+                    else -> throw ParseError("Unknown character escape `\\$escape`", Position(file, escapeIdx, 1))
                 }
             }
         }

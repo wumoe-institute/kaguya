@@ -269,9 +269,9 @@ object Intrinsics : Context {
         def("parse", 1) { args ->
             val str = args.receive().expect(Str)
             try {
-                val tokenFlow = Token.tokenFlow(str.asCharFlow().withIndex().streamIn(this), -1)
+                val tokenFlow = Token.tokenFlow(str.asCharFlow().withIndex().streamIn(this), null)
                 val tokenChannel = tokenFlow.buffer().produceIn(this)
-                val result = parseSingle(tokenChannel.asStream(), -1).inner
+                val result = parseSingle(tokenChannel.asStream(), null).inner
                 tokenChannel.receiveCatching().onSuccess {
                     throw Panic("Unexpected excessive token while parsing.", it.pos)
                 }
