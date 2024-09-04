@@ -3,6 +3,7 @@ package org.wumoe.kaguya
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.runBlocking
+import org.wumoe.kaguya.lock.Memoized
 
 object Nil : PrimitiveTag<Nil>(), Object {
     override suspend fun getTag() = this
@@ -13,7 +14,7 @@ object Nil : PrimitiveTag<Nil>(), Object {
 
     override val name = "nil"
 
-    override val str = Str(Latin1("()")).lazy()
+    override suspend fun toStrLazy() = Str(Latin1("()")).lazy()
 
     override fun hashCode() = -1
 }
@@ -56,13 +57,15 @@ sealed class Pair : Object {
                 is Nil -> Str(Latin1(")"))
                 else -> Str.concat(
                     Str(Latin1(" . ")).lazy(),
-                    arg.str,
+                    arg.toStrLazy(),
                     Str(Latin1(")")).lazy(),
                 ).require()
             }
     }
 
-    override val str by lazy {
+    private val str = Memoized<LazyObject>()
+
+    override suspend fun toStrLazy() = str.getOrInit {
         Str.concat(
             Str(Latin1("(")).lazy(),
             car.toStrLazy(),

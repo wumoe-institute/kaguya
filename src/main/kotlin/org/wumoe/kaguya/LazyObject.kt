@@ -3,6 +3,7 @@ package org.wumoe.kaguya
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.runBlocking
+import org.wumoe.kaguya.lock.Memoized
 import org.wumoe.kaguya.lock.OnceLock
 
 class LazyObject private constructor(
@@ -67,9 +68,13 @@ class LazyObject private constructor(
 
     override fun hashCode() = runBlocking { hc() }
 
-    fun toStrLazy() = eval(Pair(Meta { _, arg ->
-        arg.require().str.require()
-    }.lazy(), this).withPos(Position.builtin), NoContext)
+    private val str = Memoized<LazyObject>()
+
+    suspend fun toStrLazy() = str.getOrInit {
+        eval(Pair(Meta { _, arg ->
+            arg.require().toStrLazy().require()
+        }.lazy(), this).withPos(Position.builtin), NoContext)
+    }
 
     fun evalLazy(ctx: Context) = eval(Pair(Meta { _, arg ->
         arg.requirePositioned().eval(ctx)

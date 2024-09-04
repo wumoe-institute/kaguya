@@ -9,7 +9,7 @@ interface Object {
 
     suspend fun hc(): Int = hashCode()
 
-    val str: LazyObject
+    suspend fun toStrLazy(): LazyObject
 }
 
 interface SelfEvalObject : Object {

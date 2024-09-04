@@ -1,5 +1,6 @@
 package org.wumoe.kaguya
 
+import org.wumoe.kaguya.lock.Memoized
 import java.math.BigDecimal
 
 class Rational(
@@ -14,7 +15,9 @@ class Rational(
         override val name = "rational"
     }
 
-    override val str get() = inner.toPlainString().toStr().lazy()
+    private val str = Memoized<LazyObject>()
+
+    override suspend fun toStrLazy() = str.getOrInit { inner.toPlainString().toStr().lazy() }
 }
 
 fun tryParseNum(s: String) =

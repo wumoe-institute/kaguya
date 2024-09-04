@@ -30,7 +30,7 @@ open class Panic(val msg: String, val stack: MutableList<Position> = mutableList
 
 
 suspend fun typeError(expected: Tag, found: Object): Panic =
-    Panic("Expecting type of $expected, found ${found.getTag().str.expect(Str).collect()}.")
+    Panic("Expecting type of $expected, found ${found.getTag().toStrLazy().expect(Str).collect()}.")
 
 fun syntaxError(msg: String) = Panic("Syntax error: $msg")
 
@@ -43,4 +43,4 @@ fun tooLessArguments(expected: Int, given: Int) = Panic("Expecting at least $exp
 fun tooMuchArguments(expected: Int) = Panic("Expecting at most $expected arguments, too much given.")
 
 suspend fun noConversion(tag: PrimitiveTag<*>, obj: Object) =
-    Panic("Cannot convert ${obj.getTag().str.expect(Str).collect()} to $tag.")
+    Panic("Cannot convert ${obj.getTag().toStrLazy().expect(Str).collect()} to $tag.")

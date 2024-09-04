@@ -2,6 +2,7 @@ package org.wumoe.kaguya
 
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.single
+import org.wumoe.kaguya.lock.Memoized
 import java.lang.System.identityHashCode
 
 // TODO: i wanna replace these with a trait system
@@ -12,7 +13,7 @@ import java.lang.System.identityHashCode
 sealed interface Tag : Object, SelfEvalObject {
     val name: String
 
-    override val str get() = name.toStr().lazy()
+    override suspend fun toStrLazy() = name.toStr().lazy()
 }
 
 class TaggedObject(val tag: LazyObject, val inner: LazyObject) : Object {
@@ -25,7 +26,9 @@ class TaggedObject(val tag: LazyObject, val inner: LazyObject) : Object {
 
     override suspend fun hc() = listOf(tag, inner).hc()
 
-    override val str by lazy {
+    private val str = Memoized<LazyObject>()
+
+    override suspend fun toStrLazy() = str.getOrInit {
         Str.concat(
             inner.toStrLazy(),
             Str(Latin1(": ")).lazy(),
@@ -40,7 +43,7 @@ class TaggedObject(val tag: LazyObject, val inner: LazyObject) : Object {
 class GeneratedTag : Tag, Function {
     override var name: String
 
-    override val str by lazy { super<Tag>.str }
+    override suspend fun toStrLazy() = super<Tag>.toStrLazy()
 
     constructor(name: String) {
         this.name = name
@@ -70,7 +73,7 @@ abstract class PrimitiveTagWithConversion<T: Object> : PrimitiveTag<T>(), Functi
     override suspend fun apply(callCtx: Context, args: LazyObject) =
         convert(callCtx, args.asFlow(1).single())
 
-    override val str by lazy { super<PrimitiveTag>.str }
+    override suspend fun toStrLazy() = super<PrimitiveTag>.toStrLazy()
 
     abstract suspend fun convert(callCtx: Context, arg: LazyObject): Object
 }

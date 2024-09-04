@@ -16,7 +16,7 @@ fun interface IO : SelfEvalObject {
 
     override suspend fun getTag() = Companion
 
-    override val str get() = "<IO#${hashCode()}>".toStr().lazy()
+    override suspend fun toStrLazy() = "<IO#${hashCode()}>".toStr().lazy()
 }
 
 class Import(val path: LazyObject) : IO {

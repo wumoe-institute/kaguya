@@ -13,7 +13,7 @@ data class Symbol(private val inner: String) : Object {
         override val name = "symbol"
     }
 
-    override val str = inner.toStr().lazy()
+    override suspend fun toStrLazy()  = inner.toStr().lazy()
 
     override fun toString() = inner
 

@@ -4,6 +4,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.produceIn
+import org.wumoe.kaguya.lock.Memoized
 import org.wumoe.kaguya.lock.OnceLock
 
 /**
@@ -23,7 +24,7 @@ interface Procedure : Object, SelfEvalObject {
         override val name = "procedure"
     }
 
-    override val str get() = "<INTERNAL PROCEDURE#${hashCode()}>".toStr().lazy()
+    override suspend fun toStrLazy() = "<INTERNAL PROCEDURE#${hashCode()}>".toStr().lazy()
 }
 
 sealed interface ProcedureImplHelper : Procedure {
@@ -115,7 +116,7 @@ sealed class AbstractLambda(
     val pat: LazyObject,
     val form: LazyObject,
     val ctx: Context,
-    name: String
+    val name: String
 ) :
     ProcedureImplHelper {
     private sealed interface ConstMemoization
@@ -172,13 +173,17 @@ sealed class AbstractLambda(
 
     override suspend fun hc() = ctx.hashCode() + listOf(pat, form).hc() * 13
 
-    override val str = Str.concat(
-        Str(Latin1("($name ")).lazy(),
-        pat.toStrLazy(),
-        Str(Latin1(" -> ")).lazy(),
-        form.toStrLazy(),
-        Str(Latin1(")")).lazy(),
-    )
+    private val str = Memoized<LazyObject>()
+
+    override suspend fun toStrLazy() = str.getOrInit {
+        Str.concat(
+            Str(Latin1("($name ")).lazy(),
+            pat.toStrLazy(),
+            Str(Latin1(" -> ")).lazy(),
+            form.toStrLazy(),
+            Str(Latin1(")")).lazy(),
+        )
+    }
 }
 
 /**
@@ -251,7 +256,9 @@ class PolyProcedure(val definitions: LazyObject) : Procedure, SelfEvalObject {
 
     override suspend fun hc() = definitions.hc()
 
-    override val str = Pair(Symbol("poly").lazy(), definitions).str
+    private val str = Memoized<LazyObject>()
+
+    override suspend fun toStrLazy() = str.getOrInit { Pair(Symbol("poly").lazy(), definitions).toStrLazy() }
 }
 
 private suspend fun bindPattern(ctx: Context, pat: LazyObject, arg: LazyObject): BindResult = coroutineScope {

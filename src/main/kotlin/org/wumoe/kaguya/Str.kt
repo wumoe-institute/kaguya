@@ -19,7 +19,7 @@ class Str(
     }
 
     companion object : PrimitiveTagWithConversion<Str>() {
-        override suspend fun convert(callCtx: Context, arg: LazyObject) = arg.require().str.require()
+        override suspend fun convert(callCtx: Context, arg: LazyObject) = arg.require().toStrLazy().require()
 
         override val name = "str"
 
@@ -171,7 +171,7 @@ class Str(
         return result
     }
 
-    override val str = lazy()
+    override suspend fun toStrLazy() = lazy()
 
     suspend fun isEmpty(): Boolean {
         var next = this
