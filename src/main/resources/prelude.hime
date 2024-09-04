@@ -48,17 +48,17 @@
     (match b
         ((arg) -> arg)
         (_ -> (panic "unquote takes exactly 1 argument")))))
-(def quasiquote quote)
+(def quasiquote -> quote)
 
 (def (is obj type) -> (eq (tag-of obj) type))
 
-(def (return obj) (io obj))
+(def (return obj) -> (io obj))
 
 (def-macro (do (<<? name -> arg) . lasts) -> (require (eq <<? '<<) ->
     (list then (list fn (list name) (cons do lasts)) arg)))
 (def-macro (do arg . lasts) -> (list do `(<< _ -> ,arg) . lasts))
-(def-macro (do -> ()) (list return nil))
-(def-macro (do -> result) result)
+(def-macro (do -> ()) -> (list return nil))
+(def-macro (do -> result) -> result)
 
 (def ($ first) -> first)
 (def ($ first . lasts) -> (fn args ((apply-list $ lasts) (apply-list first args))))
@@ -70,7 +70,7 @@
 (def (= first . lasts) -> (all (fn (x) (eq first x)) lasts))
 (def /= -> ($ eq not))
 (def (or . args) -> (not (apply-list (map not args) and)))
-(def (seq-cmp inner) (self-ref (poly
+(def (seq-cmp inner) -> (self-ref (poly
     (fn (lhs rhs . args) -> (&& (inner lhs rhs) (self rhs . args)))
     (fn (_) -> true))))
 (def > -> (seq-cmp gt))
@@ -93,16 +93,16 @@
 (def (assert assertion val) -> (eval (list 'assert assertion (to-str "Assertion '" cond "' failed.") val)))
 (def (assert assertion msg val) -> (if assertion val (panic msg)))
 
-(def-macro (let (pat -> obj) . lasts) `((,fn ,pat (,let . ,lasts)) . ,obj))
-(def-macro (let -> form) form)
+(def-macro (let (pat -> obj) . lasts) -> `((,fn ,pat (,let . ,lasts)) . ,obj))
+(def-macro (let -> form) -> form)
 
 ; these are just to show friendlier error messages when they're misused
 (def-meta (unquote _) -> (panic "Unexpected 'unquote' outside of quasiquote-form"))
 (def-meta (unquote-splicing _) -> (panic "Unexpected 'unquote-splicing' outside of quasiquote-form"))
 
-(def-macro (def-tag name) `(,def ,name (,unique-tag ,name)))
+(def-macro (def-tag name) -> `(,def ,name (,unique-tag ,name)))
 
-(def (print . args) (@print-str (apply-list to-str args)))
-(def (println . args) (do
+(def (print . args) -> (@print-str (apply-list to-str args)))
+(def (println . args) -> (do
     (apply-list print args)
     (@println)))
