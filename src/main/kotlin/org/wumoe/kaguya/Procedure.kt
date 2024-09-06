@@ -14,7 +14,7 @@ interface Procedure : Object, SelfEvalObject {
     /**
      * Apply the given AST.
      */
-    suspend fun applyMeta(callCtx: Context, args: LazyObject): Object
+    suspend fun applyMeta(callCtx: Context, args: LazyObject): LazyObject
 
     override suspend fun getTag() = Companion
 
@@ -35,7 +35,7 @@ sealed interface ProcedureImplHelper : Procedure {
 
     suspend fun apply(callCtx: Context, args: LazyObject): Object
 
-    suspend fun afterApply(callCtx: Context, result: Object): Object
+    suspend fun afterApply(callCtx: Context, result: Object): LazyObject
 
     override suspend fun applyMeta(callCtx: Context, args: LazyObject) =
         afterApply(callCtx, apply(callCtx, beforeApply(callCtx, args)))
@@ -49,7 +49,7 @@ fun Procedure.applyMetaLazy(args: LazyObject, callCtx: Context = NoContext): Laz
  */
 interface ArgumentEvaluated : ProcedureImplHelper {
     override suspend fun beforeApply(callCtx: Context, args: LazyObject) =
-        MapEval.applyMeta(callCtx, args).lazy(args.pos)
+        MapEval.applyMeta(callCtx, args)
 
     suspend fun applyEvaluated(callCtx: Context, evaluatedArgs: LazyObject) =
         afterApply(callCtx, apply(callCtx, evaluatedArgs))
@@ -66,14 +66,15 @@ interface ArgumentAsIs : ProcedureImplHelper {
  * Returns the result of [apply] evaluated.
  */
 interface ResultEvaluated : ProcedureImplHelper {
-    override suspend fun afterApply(callCtx: Context, result: Object) = result.eval(callCtx)
+    override suspend fun afterApply(callCtx: Context, result: Object) =
+        LazyObject.eval(result.withPos(Position.builtin), callCtx)
 }
 
 /**
  * Returns the result of [apply] as is.
  */
 interface ResultAsIs : ProcedureImplHelper {
-    override suspend fun afterApply(callCtx: Context, result: Object) = result
+    override suspend fun afterApply(callCtx: Context, result: Object) = result.lazy()
 }
 
 fun interface Function : ArgumentEvaluated, ResultAsIs
@@ -139,6 +140,7 @@ sealed class AbstractLambda(
                     Result.failure(e)
                 }
                 memoization = Memoized(result)
+                release()
                 return@coroutineScope result.getOrThrow()
             } else {
                 memoization = NotConst
@@ -215,7 +217,7 @@ class MacroFunctionLambda(pat: LazyObject, form: LazyObject, ctx: Context) :
  * When being applied, it tries to forward the arguments to the first procedure.
  * If the procedure didn't throw a [BindFailure], then its result (or [Panic]) is forwarded.
  * Otherwise, it tries the next one.
- * It is created by `poly-*`-forms in Kaguya.
+ * It is created by `poly`-forms in Kaguya.
  */
 class PolyProcedure(val definitions: LazyObject) : Procedure, SelfEvalObject {
     override suspend fun applyMeta(callCtx: Context, args: LazyObject) = coroutineScope {
@@ -269,7 +271,7 @@ private suspend fun bindPattern(ctx: Context, pat: LazyObject, arg: LazyObject):
             val (argCar, argCdr) = when (val requiredArg = requiredArgFuture.await()) {
                 is Pair -> requiredArg
 
-                is Str -> when (val l = requiredArg.toList()) {
+                is Str -> when (val l = requiredArg.toList().require()) {
                     is Pair -> l
                     is Nil -> throw BindFailureLeaf(Pair.withPos(pat.pos), requiredArg.getTag().withPos(arg.pos))
                     else -> error("unreachable")

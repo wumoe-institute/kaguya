@@ -78,6 +78,7 @@ sealed interface Token {
                         emitIdent()
                         if (!stream.hasNext()) throw ParseError("Unexpected EOF after a prefix.", currentPos())
                         if (stream.peek().value == '@') {
+                            stream.next()
                             emit(Prefix.UNQUOTE_SPLICING.withPos(currentPos(len=2)))
                         } else {
                             emit(Prefix.UNQUOTE.withPos(currentPos()))
@@ -128,15 +129,13 @@ sealed interface Token {
     }
 }
 
-fun Prefix.name() = Str(
-    Latin1(
-        when (this) {
-            Prefix.QUOTE -> "quote"
-            Prefix.QUASIQUOTE -> "quasiquote"
-            Prefix.UNQUOTE -> "unquote"
-            Prefix.UNQUOTE_SPLICING -> "unquote-splicing"
-        }
-    )
+fun Prefix.name() = Symbol(
+    when (this) {
+        Prefix.QUOTE -> "quote"
+        Prefix.QUASIQUOTE -> "quasiquote"
+        Prefix.UNQUOTE -> "unquote"
+        Prefix.UNQUOTE_SPLICING -> "unquote-splicing"
+    }
 )
 
 private suspend fun parseRawStrLiteral(
@@ -215,6 +214,9 @@ private suspend fun parseStrLiteral(
 
                     else -> throw ParseError("Unknown character escape `\\$escape`", Position(file, escapeIdx, 1))
                 }
+            }
+            else -> {
+                builder.append(c)
             }
         }
     }

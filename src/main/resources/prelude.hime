@@ -8,11 +8,11 @@
 (def-meta (quote arg) -> arg)
 (def-macro-fn (eval arg) -> arg)
 
-(def-macro (apply-list f args) -> (cons f (eval args)))
-(def-macro (apply f . args) -> (cons f args))
+(def (apply-list f args) -> (f . args))
+(def-macro (apply . args) -> args)
 
-(def (require requirement . lasts) -> ((eval (list fn true (list apply-list require lasts))) . requirement))
-(def (require . expr) -> expr)
+(def-macro (require requirement . lasts) -> (list (cons fn (cons (list true) (require . lasts))) requirement))
+(def-macro (require -> expr) -> expr)
 
 (def (map f ()) -> nil)
 (def (map f (first . lasts)) -> (cons (f first) (map f lasts)))
@@ -25,7 +25,7 @@
 
 (def (collect-str l) (apply-list concat-str l))
 
-(def-macro (match val . arms) -> (cons (cons poly (map (fn (arm) -> (cons fn arm)) arms)) val))
+(def-macro (match val -> arms) -> (cons (cons poly (map (fn (arm) -> (cons fn arm)) arms)) val))
 (def (is-pair arg) -> (match arg
     ((_ . _) -> true)
     (_ -> false)))
@@ -38,7 +38,7 @@
 
 (def (to-str . args) -> (apply-list concat-str (map str args)))
 
-(def-macro (panic . args) -> (list panic (cons to-str args)))
+(def-macro (panic . args) -> (list @panic (cons to-str args)))
 
 (def-macro (quasiquote ((unq-spl? . args) . others)) -> (require (eq unq-spl? 'unquote-splicing)  ->
     (match args
@@ -48,26 +48,27 @@
     (match b
         ((arg) -> arg)
         (_ -> (panic "unquote takes exactly 1 argument")))))
-(def quasiquote -> quote)
+(def-macro (quasiquote (a . b)) -> (list cons (list quasiquote a) (list quasiquote b)))
+(def-macro quasiquote -> quote)
 
 (def (is obj type) -> (eq (tag-of obj) type))
 
 (def (return obj) -> (io obj))
 
 (def-macro (do (<<? name -> arg) . lasts) -> (require (eq <<? '<<) ->
-    (list then (list fn (list name) (cons do lasts)) arg)))
-(def-macro (do arg . lasts) -> (list do `(<< _ -> ,arg) . lasts))
-(def-macro (do -> ()) -> (list return nil))
+    `(,then (,fn (,name) -> (,do . ,lasts)) ,arg)))
+(def-macro (do arg . lasts) -> `(,then (,fn _ -> (,do . ,lasts)) ,arg))
+(def-macro (do -> ()) -> `(,return '()))
 (def-macro (do -> result) -> result)
 
 (def ($ first) -> first)
-(def ($ first . lasts) -> (fn args ((apply-list $ lasts) (apply-list first args))))
+(def ($ first . lasts) -> (fn args -> ((apply-list $ lasts) (apply-list first args))))
 
 (def (any pred ()) -> false)
 (def (any pred (first . lasts)) -> (if (pred first) true (any pred lasts)))
 (def (all pred l) -> (not (any ($ pred not) l)))
 
-(def (= first . lasts) -> (all (fn (x) (eq first x)) lasts))
+(def (= first . lasts) -> (all (fn (x) -> (eq first x)) lasts))
 (def /= -> ($ eq not))
 (def (or . args) -> (not (apply-list (map not args) and)))
 (def (seq-cmp inner) -> (self-ref (poly
@@ -105,4 +106,4 @@
 (def (print . args) -> (@print-str (apply-list to-str args)))
 (def (println . args) -> (do
     (apply-list print args)
-    (@println)))
+    @println))

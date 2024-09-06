@@ -53,6 +53,6 @@ class ThenIO(val func: LazyObject, val former: LazyObject) : IO {
             requiredFunc.applyEvaluated(NoContext, Pair(requiredFormer.await().unwrap(world).lazy(), Nil.lazy()).lazy())
         } else {
             requiredFunc.applyMeta(NoContext, Pair(requiredFormer.await().unwrap(world).lazy(), Nil.lazy()).lazy())
-        }
+        }.expect(IO).unwrap(world)
     }
 }

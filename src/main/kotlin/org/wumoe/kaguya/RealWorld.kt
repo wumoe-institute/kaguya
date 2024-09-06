@@ -10,13 +10,12 @@ import org.wumoe.kaguya.parser.parseSingle
 import org.wumoe.kaguya.parser.streamIn
 import java.io.FileNotFoundException
 import java.io.FileReader
-import java.io.InputStreamReader
 
 open class RealWorld(
     /**
-     * A map from `Int` to full paths of the source files.
+     * A map from the full path of the source file to its content.
      */
-    private val sourcePaths: MutableSet<String> = mutableSetOf(),
+    private val sources: MutableMap<String, String> = mutableMapOf(),
     private val globalScope: MutableContext = MutableContext(Intrinsics),
 ) {
     open suspend fun print(piece: Piece) {
@@ -27,39 +26,54 @@ open class RealWorld(
         kotlin.io.println()
     }
 
+    suspend fun println(piece: Piece) {
+        print(piece)
+        println()
+    }
+
+    suspend fun print(str: Str) {
+        str.asPieceFlow().collect {
+            print(it)
+        }
+    }
+
+    suspend fun println(str: Str) {
+        print(str)
+        println()
+    }
+
     fun define(name: Symbol, obj: LazyObject) {
         globalScope.put(name, obj)
     }
 
-    private fun parseFileRaw(fullPath: String, reader: InputStreamReader): Flow<Positioned<Object>> {
-        sourcePaths.add(fullPath)
-        return flow {
-            coroutineScope {
-                val charStream = flow {
-                    // I don't know why `forEachLine` is not inline
-                    reader.useLines {
-                        it.forEach { line ->
-                            emitAll(line.asSequence().asFlow())
-                            emit('\n')
-                        }
+    fun parseFileRaw(fullPath: String, content: String): Flow<Positioned<Object>>? =
+        if (sources.putIfAbsent(fullPath, content) !== null) {
+            null
+        } else {
+            flow {
+                coroutineScope {
+                    val charStream = content.asIterable().asFlow().withIndex().streamIn(this)
+                    val tokenStream = Token.tokenFlow(charStream, fullPath).streamIn(this)
+                    while (tokenStream.hasNext()) {
+                        emit(parseSingle(tokenStream, fullPath))
                     }
-                }.withIndex().streamIn(this)
-                val tokenStream = Token.tokenFlow(charStream, fullPath).streamIn(this)
-                while (tokenStream.hasNext()) {
-                    emit(parseSingle(tokenStream, fullPath))
                 }
             }
         }
-    }
 
-    private fun readFile(fullPath: String): InputStreamReader? {
-        if (sourcePaths.contains(fullPath)) return null
+    private fun readFile(fullPath: String): String? {
+        if (sources.contains(fullPath)) return null
         return try {
-            FileReader(fullPath)
+            val reader = FileReader(fullPath)
+            val result = reader.readText()
+            reader.close()
+            result
         } catch (e: FileNotFoundException) {
             throw Panic(e.message ?: "")
         }
     }
+
+    fun removeFile(fullPath: String) = sources.remove(fullPath)
 
     fun parseFile(fullPath: String) =
         readFile(fullPath)?.let { parseFileRaw(fullPath, it) }
@@ -68,8 +82,8 @@ open class RealWorld(
     suspend fun importFile(fullPath: String) =
         readFile(fullPath)?.let { importFileRaw(fullPath, it) }
 
-    private suspend fun importFileRaw(fullPath: String, reader: InputStreamReader) = withContext(Dispatchers.IO) {
-        parseFileRaw(fullPath, reader).collect {
+    suspend fun importFileRaw(fullPath: String, reader: String) = withContext(Dispatchers.IO) {
+        parseFileRaw(fullPath, reader)?.collect {
             try {
                 evalAndExecute(it.inner)
             } catch (e: Panic) {
@@ -103,12 +117,12 @@ open class RealWorld(
         }
 
     suspend fun loadPrelude() {
-        if (sourcePaths.contains(preludePlaceholderName)) return
-        val reader = checkNotNull(RealWorld::class.java.getResourceAsStream("/prelude.hime")) {
+        if (sources.contains(preludePlaceholderName)) return
+        val prelude = checkNotNull(RealWorld::class.java.getResourceAsStream("/prelude.hime")) {
             "'prelude.hime' not found in resources."
-        }.reader()
+        }.reader().readText()
         try {
-            importFileRaw(preludePlaceholderName, reader)
+            importFileRaw(preludePlaceholderName, prelude)
         } catch (e: Panic) {
             println("prelude panicked: ${e.toStringRaw()}")
             throw e
@@ -117,9 +131,11 @@ open class RealWorld(
             throw e
         }
     }
+
+    fun getSource(fullPath: String) = sources[fullPath]
 }
 
-private const val preludePlaceholderName = "\u0000///prelude"
+private const val preludePlaceholderName = "<PRELUDE>"
 
 class MutableContext(val parent: Context) : Context {
     private data class PolyBuilder(val list: MutableList<LazyObject>)

@@ -35,3 +35,10 @@ infix fun Position.until(other: Position) = Position(file, this.idx, other.len +
  * Another way of writing `Positioned(this, pos)`
  */
 fun <T> T.withPos(pos: Position) = Positioned(this, pos)
+
+inline fun <T, R> Positioned<T>.catchPanic(block: Positioned<T>.() -> R): R =
+    try {
+        block()
+    } catch (e: Panic) {
+        throw e.apply { unwind(pos) }
+    }

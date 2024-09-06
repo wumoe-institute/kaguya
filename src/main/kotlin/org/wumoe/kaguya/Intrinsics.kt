@@ -154,10 +154,12 @@ object Intrinsics : Context {
 
         symbols[Symbol("def-macro")] = Def.Macro.impl().lazy()
 
-        symbols[Symbol("def-macro-fn")] = Def.Macro.impl().lazy()
+        symbols[Symbol("def-macro-fn")] = Def.MacroFn.impl().lazy()
 
         def("eq", 2) { args ->
-            Bool(args.receive().eq(args.receive()))
+            val lhs = args.receive()
+            val rhs = args.receive()
+            Bool(lhs.eq(rhs))
         }
 
         defNumeric("gt") { lhs, rhs ->
@@ -285,19 +287,14 @@ object Intrinsics : Context {
             Import(args.receive())
         }
 
-        def("@println", 0) { _ ->
-            IO { world ->
-                world.println()
-                Nil
-            }
-        }
+        def("@println", IO { world ->
+            world.println()
+            Nil
+        })
 
         def("@print-str", 1) { args ->
             IO { world ->
-                val str = args.receive().expect(Str)
-                str.asPieceFlow().collect {
-                    world.print(it)
-                }
+                world.print(args.receive().expect(Str))
                 Nil
             }
         }
@@ -331,7 +328,7 @@ private fun Def.impl() = Meta { ctx, args ->
     var (referer, referee) = args.expect(Pair)
     loop {
         when (val requiredReferer = referer.require()) {
-            is Symbol -> return@Meta Definition(requiredReferer, referee)
+            is Symbol -> return@Meta Definition(requiredReferer, referee.evalLazy(ctx))
             is Pair -> {
                 referer = requiredReferer.car
                 val pat = requiredReferer.cdr

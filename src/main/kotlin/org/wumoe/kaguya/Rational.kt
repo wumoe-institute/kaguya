@@ -3,7 +3,7 @@ package org.wumoe.kaguya
 import org.wumoe.kaguya.lock.Memoized
 import java.math.BigDecimal
 
-class Rational(
+data class Rational(
     // TODO: `BigDecimal` does not fit into our requirement. implement a new one.
     val inner: BigDecimal
 ) : SelfEvalObject {

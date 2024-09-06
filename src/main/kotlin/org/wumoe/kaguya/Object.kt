@@ -12,6 +12,8 @@ interface Object {
     suspend fun toStrLazy(): LazyObject
 }
 
+suspend fun Object.toStr() = toStrLazy().expect(Str)
+
 interface SelfEvalObject : Object {
     override suspend fun eval(ctx: Context) = this
 }

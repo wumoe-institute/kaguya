@@ -59,7 +59,7 @@ class LazyObject private constructor(
     suspend fun eq(other: LazyObject) = coroutineScope {
         val lhs = async { require() }
         val rhs = async { other.require() }
-        lhs.await() == rhs.await()
+        lhs.await().eq(rhs.await())
     }
 
     override fun equals(other: Any?) = runBlocking { other === this || other is LazyObject && eq(other) }

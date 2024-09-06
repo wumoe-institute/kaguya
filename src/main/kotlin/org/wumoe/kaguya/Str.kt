@@ -23,7 +23,7 @@ class Str(
 
         override val name = "str"
 
-        internal object ConcatImpl : Meta {
+        internal object ConcatImpl : Function {
             override suspend fun apply(callCtx: Context, args: LazyObject) =
                 when (val argsRequired = args.require()) {
                     is Nil -> Str()
@@ -40,7 +40,7 @@ class Str(
                 }
         }
 
-        fun concat(vararg args: LazyObject): LazyObject = ConcatImpl.applyMetaLazy(PairOfList(args.asList()).lazy())
+        fun concat(vararg args: LazyObject): LazyObject = ConcatImpl.applyMetaLazy(PairOfList(args.asList() + listOf(Nil.lazy())).lazy())
 
         fun fromString(s: String): Str {
             if (s.isEmpty()) {
@@ -95,9 +95,9 @@ class Str(
             override suspend fun apply(callCtx: Context, args: LazyObject) = with(args.expect(Str)) {
                 if (piece.isEmpty()) {
                     if (next !== null) {
-                        AsListImpl.applyMeta(callCtx, next)
+                        AsListImpl.applyMeta(callCtx, next).require()
                     } else {
-                        this
+                        this@with
                     }
                 } else {
                     Pair(Str(SingleChar(piece[0])).lazy(), AsListImpl.applyMetaLazy(Str(piece.drop(1), next).lazy(), callCtx))

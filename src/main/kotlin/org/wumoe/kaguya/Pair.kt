@@ -14,14 +14,12 @@ object Nil : PrimitiveTag<Nil>(), Object {
 
     override val name = "nil"
 
-    override suspend fun toStrLazy() = Str(Latin1("()")).lazy()
-
     override fun hashCode() = -1
 }
 
 sealed class Pair : Object {
     override suspend fun eval(ctx: Context) =
-        car.requirePositioned().eval(ctx).expect(Procedure).applyMeta(ctx, cdr)
+            car.requirePositioned().catchPanic { eval(ctx).expect(Procedure) }.applyMeta(ctx, cdr).require()
 
     override suspend fun getTag() = Pair
 

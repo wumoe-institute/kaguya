@@ -1,7 +1,7 @@
 package org.wumoe.kaguya
 
 
-class Bool(val inner: Boolean) : Object, SelfEvalObject {
+data class Bool(val inner: Boolean) : Object, SelfEvalObject {
     override suspend fun getTag() = Companion
 
     companion object : PrimitiveTagWithConversion<Bool>() {
